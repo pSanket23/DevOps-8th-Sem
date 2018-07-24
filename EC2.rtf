@@ -1,0 +1,54 @@
+provider "aws" {
+access_key	= "${var.aws_access_key_id}"
+secret_key	= "${var.aws_secret_access_key}"
+region     = "us-east-2c"
+}
+
+resource "aws_instance" "web" {
+  ami = "ami-caaf84af"
+  instance_type = "t2.micro"
+  tags {
+    Name = "JenkinsMaster"
+  }
+  security_groups = [ "${launch-wizard-2}" ]
+}
+
+resource "aws_instance" "web" {
+  ami = "ami-caaf84af"
+  instance_type = "t2.micro"
+  tags {
+    Name = "Nexus"
+  }
+  security_groups = [ "${launch-wizard-2}" ]
+}
+
+resource "aws_instance" "web" {
+  ami = "ami-caaf84af"
+  instance_type = "t2.micro"
+  tags {
+    Name = "AppServer"
+  }
+  security_groups = [ "${launch-wizard-2}" ]
+}
+
+resource "aws_s3_bucket" "s3-gotomyward-bucket"{
+  bucket = "s3-gotomyward-bucket"
+  acl    = "private"
+}
+
+
+resource "aws_iam_role" "IAM-EC2-Role" {
+name = "IAM-EC2-Role"
+assume_role_policy = <<EOF
+{
+   "Version": "2018-10-17",
+   "Statement": [
+       {
+           "Effect": "Allow",
+           "Action": "s3:*",
+           "Resource": "*"
+       }
+   ]
+}
+EOF
+}
