@@ -1,0 +1,80 @@
+node('master'){
+   
+    //Clearing the workspace before new build
+    stage('Clear Workspace'){
+	
+	  echo "Clear Workspace"
+      deleteDir()
+    }
+	
+	//Pulling latest code from Git
+	stage('Checkout'){
+	
+	  echo "Cloning Git Repository"
+      checkout scm
+    }
+	
+	//Notify user that build is started
+	stage('Notify build is started'){
+	
+	  echo "sending a test mail"
+      emailext body: 'Build started', subject: 'Build started', to: 'sanketpethkar23@gmail.com'
+    }
+	
+	stage('Build'){
+	  
+	  try{
+		
+		  sh 'npm install'
+		  sh 'ng build --progress false --prod --aot'
+		  sh 'tar -cvzf dist.tar.gz --strip-components=1 dist'
+		}
+		catch(Exception exp){
+			currentBuild.status="Failed"
+		}
+		currentBuild.status="Success"
+    }
+	
+	stage('Notify build status'){
+	
+	  echo "sending a test mail"
+      emailext body: 'Build status is ' + currentBuild.status, subject: 'Build status', to: 'sanketpethkar23@gmail.com'
+    }
+  
+  stage('Publich Artifacts to Nexus'){
+	  
+	  nexusArtifactUploader artifacts: [[artifactId: 'gotomyward', classifier: '', file: 'dist.tar.gz', type: 'gz']], credentialsId: '743c8a00-5385-4d50-a99d-562aa405abc7', groupId: 'angular', nexusUrl: 'nexus.wista.com', nexusVersion: 'nexus3', protocol: 'http', repository: 'npm-hosted', version: 'BUILD_NUMBER'
+    }
+}
+
+node('AppServer'){
+
+  stage('Deploy application to Apache tomcat'){
+  
+	  //Download artifact from Nexus
+	  nexusURL="http://nexus.wista.com/repositories/npm-hosted/angular/gotomyward/dist.tar" + BUILD_NUMBER + ".gz"
+	  fileName= "dist.tar" + BUILD_NUMBER + ".gz"
+	  withCredentials([usernameColonPassword(credentialsId: '743c8a00-5385-4d50-a99d-562aa405abc7', variable: 'nexusCred')]) {
+	  sh 'curl -X GET -u nexusCred nexusURL -O'
+	  }
+	  
+	  //Stop Apache Tomcat Service
+	  sh 'service httpd stop'
+	  
+	  //Backup Current working code 
+	  sh 'cp -r /var/www/html/my-app /var/www/html/my-app_bkp'
+	  
+	  //Unzip artifact
+	  sh 'gunzip -k ${fileName}'
+	  
+	  //Deploy the lates code to Tomcat directory 
+	  sh 'cp -r dist /var/www/html/my-app/dist'
+	  
+	  //Start Apache Tomcat Service
+	  sh 'service httpd start'
+	  
+    }
+  
+  
+	
+}
